@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Clientes</title>
+  <style>
+    /* General Reset */
+body, h1, h2, p, ul, li, button, input {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: rgb(81, 83, 90);
+    color: #ffffff;
+    line-height: 1.6;
+    padding: 20px;
+}
+
+#app {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+header .logo {
+    width: 100px;
+    margin-bottom: 10px;
+}
+
+h1, h2 {
+    color: #8d8d91;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+li {
+    background: #5c5a5aa9;
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 5px;
+    border-left: 4px solid #85849b;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+li button {
+    margin-left: 20px; /* Espacio entre el nombre y el botón */
+    padding: 5px 15px;
+    background-color: #2282ff;
+    color: #ffffff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+li button:hover {
+    background-color: #e64a19;
+}
+
+li button:disabled {
+    background-color: #555555;
+    cursor: not-allowed;
+}
+
+button {
+    background-color: #ff5722;
+    color: #ffffff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+button:hover {
+    background-color: #e64a19;
+}
+
+button:disabled {
+    background-color: #555555;
+    cursor: not-allowed;
+}
+
+#addClientButton {
+    display: block;
+    margin: 20px auto;
+}
+
+form {
+    background: #5c5a5a93;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+form label {
+    display: block;
+    margin: 10px 0 5px;
+}
+
+form input[type="text"], form input[type="checkbox"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #333333;
+    border-radius: 5px;
+    background: #121212;
+    color: #ffffff;
+}
+
+form input[type="text"]:focus {
+    outline: none;
+    border-color: #ff5722;
+}
+
+.form-buttons {
+    display: flex;
+    justify-content: space-between;
+}
+
+#successMessage {
+    text-align: center;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+/* Clientes contactados */
+.contacted {
+    background-color: #2e7d32;
+    border-left-color: #1b5e20;
+}
+
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <img src="TODO DIGITAL.png" alt="Logo" class="logo">
+      <h1>Posibles clientes</h1>
+    </header>
+
+    <main>
+      <section id="clientSection">
+        <ul id="clientList"></ul>
+        <button id="addClientButton">Agregar Cliente</button>
+      </section>
+
+      <section id="formSection">
+        <form id="clientForm" style="display: none;">
+          <h2>Registrar Cliente</h2>
+          <label for="companyName">Nombre de la Empresa:</label>
+          <input type="text" id="companyName" required>
+          <label for="contact">Teléfono o Email:</label>
+          <input type="text" id="contact" required>
+          <label>
+            <input type="checkbox" id="contacted"> ¿Contactado?
+          </label>
+          <div class="form-buttons">
+            <button type="submit">Registrar</button>
+            <button type="button" id="cancelButton">Cancelar</button>
+          </div>
+        </form>
+        <p id="successMessage"></p>
+      </section>
+    </main>
+  </div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+import { getDatabase, ref, set, get, update } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js";
+
+// Configuración de Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyBbic0Jdnrb27zgLmPYqXg4hhPJ9Zibzek",
+  authDomain: "posiblesclientes-d4810.firebaseapp.com",
+  projectId: "posiblesclientes-d4810",
+  storageBucket: "posiblesclientes-d4810.firebasestorage.app",
+  messagingSenderId: "449255902336",
+  appId: "1:449255902336:web:aec1c755b3916c6f3b2a65",
+  measurementId: "G-Y8H1ESSYZV"
+};
+
+// Inicialización de Firebase
+const app = initializeApp(firebaseConfig);
+
+// Inicializar Realtime Database
+const database = getDatabase(app);
+
+// Referencias a elementos del DOM
+const clientList = document.getElementById("clientList");
+const addClientButton = document.getElementById("addClientButton");
+const formSection = document.getElementById("formSection");
+const clientForm = document.getElementById("clientForm");
+const cancelButton = document.getElementById("cancelButton");
+const successMessage = document.getElementById("successMessage");
+
+// Mostrar clientes al iniciar
+async function loadClients() {
+  clientList.innerHTML = "";
+  const clientsRef = ref(database, 'clients');
+  const snapshot = await get(clientsRef);
+  if (snapshot.exists()) {
+    const clients = snapshot.val();
+    Object.keys(clients).forEach(clientId => {
+      const client = clients[clientId];
+      const li = document.createElement("li");
+      li.textContent = `${client.companyName} - ${client.contact}`;
+      
+      // Asegurarse de que client.contacted sea un valor booleano
+      const isContacted = client.contacted !== undefined ? client.contacted : false;
+
+      // Solo agregar la clase "contacted" si isContacted es verdadero
+      if (isContacted) {
+        li.classList.add("contacted");
+      }
+
+      // Botón para cambiar estado
+      const toggleButton = document.createElement("button");
+      toggleButton.textContent = isContacted ? "Marcar como no contactado" : "Marcar como contactado";
+      toggleButton.addEventListener("click", () => toggleContacted(clientId, isContacted, li, toggleButton));
+
+      li.appendChild(toggleButton);
+      clientList.appendChild(li);
+    });
+  } else {
+    console.log("No clients found.");
+  }
+}
+
+// Cambiar estado de contactado
+async function toggleContacted(clientId, currentStatus, listItem, button) {
+  const clientRef = ref(database, 'clients/' + clientId);
+  const newStatus = !currentStatus;
+  await update(clientRef, { contacted: newStatus });
+
+  // Actualizar UI
+  listItem.classList.toggle("contacted", newStatus);
+  button.textContent = newStatus ? "Marcar como no contactado" : "Marcar como contactado";
+}
+
+// Mostrar formulario
+addClientButton.addEventListener("click", () => {
+  clientForm.style.display = "block";
+  addClientButton.style.display = "none";
+});
+
+// Cancelar formulario
+cancelButton.addEventListener("click", () => {
+  clientForm.style.display = "none";
+  addClientButton.style.display = "block";
+});
+
+// Registrar nuevo cliente
+clientForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const companyName = document.getElementById("companyName").value;
+  const contact = document.getElementById("contact").value;
+  const contacted = document.getElementById("contacted").checked;
+
+  const newClientRef = ref(database, 'clients/' + Date.now()); // Usar un ID único basado en el timestamp
+  await set(newClientRef, {
+    companyName,
+    contact,
+    contacted
+  });
+
+  clientForm.reset();
+  clientForm.style.display = "none";
+  addClientButton.style.display = "block";
+  successMessage.textContent = "Cliente registrado con éxito!";
+  setTimeout(() => (successMessage.textContent = ""), 3000);
+
+  loadClients(); // Recargar la lista de clientes
+});
+
+// Cargar clientes al iniciar
+loadClients();
+
+  </script>
+</body>
+</html>
